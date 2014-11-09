@@ -89,9 +89,20 @@ fi
 
 [ "X${CFT_DIR}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - VAR CFT_DIR not set in your env." && exit 1
 
+#-- Replace file extension string by a Real Date in a good format.
+_INPUT_FILE_TMP=`echo ${INPUT_FILE} | perl -pe "s#.csv|.txt|.xml#.converted#ig"`
+_CODE_REPLACE=$?
+if [ ${_CODE_REPLACE} -ne 0 ]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le remplacement de l'extention du fichier d'OUTPUT est en erreur."
+    exit ${_CODE_REPLACE}
+  else
+    INPUT_FILE=${_INPUT_FILE_TMP}
+fi
+
 _FULL_INPUT_FILE_PATH="${CFT_DIR}/${IDF}.wait/${INPUT_FILE}"
 
-echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Verifying SDR file ..."
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Verifying converted file ..."
 if [[ ! -s ${_FULL_INPUT_FILE_PATH} ]]
   then
     echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le Fichier ${_FULL_INPUT_FILE_PATH} est vide ou absent merci de regarder."
@@ -99,19 +110,8 @@ if [[ ! -s ${_FULL_INPUT_FILE_PATH} ]]
     exit 1
 fi
 
-#-- Replace file extension string by a Real Date in a good format.
-_OUTPUT_FILE=`echo ${INPUT_FILE} | perl -pe "s#.csv|.txt|.xml#.converted#ig"`
-_CODE_REPLACE=$?
-if [ ${_CODE_REPLACE} -ne 0 ]
-  then
-    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le remplacement de l'extention du fichier d'OUTPUT est en erreur."
-    exit ${_CODE_REPLACE}
-fi
-
-_FULL_OUTPUT_FILE_PATH="${SUMMITSPOOLDIR}/${_OUTPUT_FILE}"
-
-_EXE_NAME="convXML2MktImpFile"
-_EXE_PARM=" -I ${_FULL_INPUT_FILE_PATH} -O ${_FULL_OUTPUT_FILE_PATH}"
+_EXE_NAME="mktimp"
+_EXE_PARM=" -I ${_FULL_INPUT_FILE_PATH} -CREATE"
 
 #-------------------------------------------------------------------"
 echo "DEBUT JOB ${CTM0} $(date "+%Y%m%d-%H%M%S") -------------------"
@@ -119,8 +119,7 @@ echo "DEBUT JOB ${CTM0} $(date "+%Y%m%d-%H%M%S") -------------------"
 
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - IDF : ${IDF}"
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - CFT Directory : ${CFT_DIR}"
-echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichie d'input : ${_FULL_INPUT_FILE_PATH}"
-echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichier d'output converti : ${_FULL_OUTPUT_FILE_PATH}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichie d'input converti : ${_FULL_INPUT_FILE_PATH}"
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Copie du fichier d'input dans un repertoire de travail => ${SUMMITSPOOLDIR}"
 
 cp -p ${_FULL_INPUT_FILE_PATH} ${SUMMITSPOOLDIR}
@@ -152,18 +151,15 @@ if [ ${_CODE} -ne 0 ]
     exit ${_CODE}
   else
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
-    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier d'import vers le repertoire ${CFT_DIR}/${IDF}.done"
+    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier converti vers le repertoire ${CFT_DIR}/${IDF}.done"
     mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.done/
-    _CODEMV=$?
-    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier converti vers le repertoire ${CFT_DIR}/${IDF}.wait"
-    mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.wait/
     ((_CODEMV+=$?))
     if [ ${_CODEMV} -ne 0 ]
       then
-        echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Echec du deplacements des fichiers."
+        echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Echec du deplacement du fichier ${_FULL_INPUT_FILE_PATH}."
         exit 1
       else
-        echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacements des fichiers effectues."
+        echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier effectue."
     fi
 fi
 

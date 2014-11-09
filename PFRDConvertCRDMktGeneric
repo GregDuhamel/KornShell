@@ -156,7 +156,7 @@ if [ ${_CODE} -ne 0 ]
     mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.done/
     _CODEMV=$?
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier converti vers le repertoire ${CFT_DIR}/${IDF}.wait"
-    mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.wait/
+    mv ${_FULL_OUTPUT_FILE_PATH} ${CFT_DIR}/${IDF}.wait/
     ((_CODEMV+=$?))
     if [ ${_CODEMV} -ne 0 ]
       then
