@@ -167,6 +167,5 @@ if [ ${_CODE} -ne 0 ]
     fi
 fi
 
-echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
 echo "FIN JOB ${CTM0} $(date "+%Y%m%d-%H%M%S")"
 exit ${_CODE}
