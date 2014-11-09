@@ -1,0 +1,172 @@
+#!/bin/ksh
+# Script de lancement des PNL generiques.
+#-------------------------------------------------------------------
+# Diverses initialisations de variables obligatoires
+#-------------------------------------------------------------------
+#-- Date passee en argument par CONTROLM
+ODATE=${1}
+[ "X${ODATE}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm ODATE not found" && exit 1
+#-- Closing
+CLOSING=${2}
+[ "X${CLOSING}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm CLOSING not found" && exit 1
+#-- JobName
+JOB=${3}
+[ "X${JOB}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm JOB not found" && exit 1
+#-- IDF
+IDF=${4}
+[ "X${IDF}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm IDF not found" && exit 1
+#-- INPUT_FILE
+INPUT_FILE=${5}
+[ "X${INPUT_FILE}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm INPUT_FILE not found" && exit 1
+#-- DATE_FORMAT
+DATE_FORMAT=${6}
+[ "X${DATE_FORMAT}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Parm DATE_FORMAT not found" && exit 1
+#-- Chargement de l'environnement GEC
+#-- exporte les variables CTM0, GEHLOG, GEDAA, GEDAACC et GEDSOFT
+ctrlmExports ${0}
+switch ${GEHLOG} 1>/dev/null
+#-------------------------------------------------------------------
+# Chargement des variables d'environnement
+#-------------------------------------------------------------------
+[ -f ${GEDAAETC}/env.ksh ] && . ${GEDAAETC}/env.ksh
+[ -f ${GEDAACC}/etc/env.ksh ] && . ${GEDAACC}/etc/env.ksh
+#-------------------------------------------------------------------
+# Initialisation des variables n'ayant pas a etre modifiees
+#-------------------------------------------------------------------
+#-- Creation auto des repertoires necessaires.
+#-- Repertoires logs/${JOB}
+if [ ! -d ${GEDAACH}/logs/${JOB} ]; then
+        mkdir -p  ${GEDAACH}/logs/${JOB}
+fi
+#-- Repertoires travaux/${JOB}
+if [ ! -d ${GEDAACH}/travaux/${JOB} ]; then
+        mkdir -p  ${GEDAACH}/travaux/${JOB}
+fi
+export SUMMITSPOOLDIR="${SUMMITSPOOLDIR}/$JOB"
+export SUMMITERRDIR="${SUMMITERRDIR}/$JOB"
+_CODE=0
+#-------------------------------------------------------------------
+# Initialisation des variables specifiques au job
+#-------------------------------------------------------------------
+#-- MAIL :
+export MAIL_FROM="summit_front_auto@exchange.cmi.net"
+if [ "${GEIENV}" == "X" ]
+then
+        export MAIL_TO="moasummitfront_auto@exchange.cmi.net ld-m-sdr_MOA_Market_Data_Studies@natixis.com ifo-production@natixis.com"
+        export MAIL_CC="summit_front_auto@exchange.cmi.net"
+
+elif [ "${GEIENV}" == "P" ]; then
+        export MAIL_TO="ifo-horsproduction@natixis.com"
+
+fi
+
+case ${DATE_FORMAT} in
+        BATCHDATE_SQL)  _MYDATE=`${SPEHOME}/sbin/recupBatchDate.ksh "CDCMPARIS" "SQL"`;;
+        BATCHDATE)      _MYDATE=`${SPEHOME}/sbin/recupBatchDate.ksh "CDCMPARIS"`;;
+        PREVDATE_SQL)   _MYDATE=`${SPEHOME}/sbin/recupPrevDate.ksh "CDCMPARIS" "SQL"`;;
+        PREVDATE)       _MYDATE=`${SPEHOME}/sbin/recupPrevDate.ksh "CDCMPARIS"`;;
+        NEXDATE_SQL)    _MYDATE=`${SPEHOME}/sbin/recupNextDate.ksh "CDCMPARIS" "SQL"`;;
+        NEXDATE)        _MYDATE=`${SPEHOME}/sbin/recupNextDate.ksh "CDCMPARIS"`;;
+        *)              echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - DATE_FORMAT non valable (Date disponible : BATCHDATE(SQL),PREVDATE(SQL),NEXDATE(SQL))" && exit 1;;
+esac
+_CODE_RECUP=$?
+if [ ${_CODE_RECUP} -ne 0 ]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - La recuperation de la date est en erreur."
+    exit ${_CODE_RECUP}
+fi
+
+#-- Replace mydate string by a Real Date in a good format.
+_INPUT_FILE_TMP=`echo ${INPUT_FILE} | perl -pe "s#mydate#${_MYDATE}#g"`
+_CODE_REPLACE=$?
+if [ ${_CODE_REPLACE} -ne 0 ]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le remplacement de la date dans le fichier d'INPUT ${INPUT_FILE} est en erreur."
+    exit ${_CODE_REPLACE}
+  else
+    INPUT_FILE=${_INPUT_FILE_TMP}
+fi
+
+[ "X${CFT_DIR}" = "X" ] && echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - VAR CFT_DIR not set in your env." && exit 1
+
+_FULL_INPUT_FILE_PATH="${CFT_DIR}/${IDF}.wait/${INPUT_FILE}"
+
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Verifying SDR file ..."
+if [[ ! -s ${_FULL_INPUT_FILE_PATH} ]]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le Fichier ${_FULL_INPUT_FILE_PATH} est vide ou absent merci de regarder."
+    GecMail -o "[${GEIENV}][ERROR] ${JOB} en erreur le $(date "+%Y-%m-%d") à $(date "+%H-%M-%S")" -d "${MAIL_TO}" -m "Le Fichier ${_FULL_INPUT_FILE_PATH} est vide ou absent merci de regarder."
+    exit 1
+fi
+
+#-- Replace file extension string by a Real Date in a good format.
+_OUTPUT_FILE=`echo ${INPUT_FILE} | perl -pe "s#.csv|.txt|.xml#.converted#ig"`
+_CODE_REPLACE=$?
+if [ ${_CODE_REPLACE} -ne 0 ]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Le remplacement de l'extention du fichier d'OUTPUT est en erreur."
+    exit ${_CODE_REPLACE}
+fi
+
+_FULL_OUTPUT_FILE_PATH="${SUMMITSPOOLDIR}/${_OUTPUT_FILE}"
+
+_EXE_NAME="convXML2MktImpFile"
+_EXE_PARM=" -I ${_FULL_INPUT_FILE_PATH} -O ${_FULL_OUTPUT_FILE_PATH}"
+
+#-------------------------------------------------------------------"
+echo "DEBUT JOB ${CTM0} $(date "+%Y%m%d-%H%M%S") -------------------"
+#-------------------------------------------------------------------"
+
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - IDF : ${IDF}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - CFT Directory : ${CFT_DIR}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichie d'input : ${_FULL_INPUT_FILE_PATH}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichier d'output converti : ${_FULL_OUTPUT_FILE_PATH}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Copie du fichier d'input dans un repertoire de travail => ${SUMMITSPOOLDIR}"
+
+cp -p ${_FULL_INPUT_FILE_PATH} ${SUMMITSPOOLDIR}
+_CODE_CP=$?
+if [ ${_CODE_CP} -ne 0 ]
+  then
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Echec de la copie du fichier dans le repertoire travaux."
+    exit ${_CODE_CP}
+  else
+    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Copie effectuee."
+fi
+
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Demarrage de l'execution du job => ${_EXE_NAME}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Les parametres suivants => ${_EXE_PARM} seront utilises."
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - La base utilisee est => ${DSQUERY}:${SUMMITDBNAME}"
+
+${_EXE_NAME} ${_EXE_PARM}
+_CODE=$?
+
+if [ ${_CODE} -ne 0 ]
+  then
+    if [ -f ${SUMMITERRDIR}/ERRORLOG.DAT ]
+      then
+        mv ${SUMMITERRDIR}/ERRORLOG.DAT  ${SUMMITERRDIR}/ERRORLOG.DAT.$(date "+%Y%m%d_%H%M%S")
+    fi
+    GecMail -o "[${GEIENV}][ERROR] ${JOB} en erreur le $(date "+%Y-%m-%d") à $(date "+%H-%M-%S")" -d "${MAIL_TO}" -m "Le Job ${JOB} est en erreur, merci de regarder."
+    echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
+    echo "FIN JOB ${CTM0} $(date "+%Y%m%d-%H%M%S")"
+    exit ${_CODE}
+  else
+    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
+    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier d'import vers le repertoire ${CFT_DIR}/${IDF}.done"
+    mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.done/
+    _CODEMV=$?
+    echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier converti vers le repertoire ${CFT_DIR}/${IDF}.wait"
+    mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.wait/
+    ((_CODEMV+=$?))
+    if [ ${_CODEMV} -ne 0 ]
+      then
+        echo "[ERROR] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Echec du deplacements des fichiers."
+        exit 1
+      else
+        echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacements des fichiers effectues."
+    fi
+fi
+
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
+echo "FIN JOB ${CTM0} $(date "+%Y%m%d-%H%M%S")"
+exit ${_CODE}
