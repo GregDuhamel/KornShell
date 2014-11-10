@@ -150,6 +150,10 @@ if [ ${_CODE} -ne 0 ]
     echo "FIN JOB ${CTM0} $(date "+%Y%m%d-%H%M%S")"
     exit ${_CODE}
   else
+    if [ -f ${SUMMITERRDIR}/ERRORLOG.DAT ]
+      then
+        mv ${SUMMITERRDIR}/ERRORLOG.DAT  ${SUMMITERRDIR}/ERRORLOG.DAT.$(date "+%Y%m%d_%H%M%S")
+    fi
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier converti vers le repertoire ${CFT_DIR}/${IDF}.done"
     mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.done/

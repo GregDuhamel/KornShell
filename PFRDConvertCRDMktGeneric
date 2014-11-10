@@ -119,7 +119,7 @@ echo "DEBUT JOB ${CTM0} $(date "+%Y%m%d-%H%M%S") -------------------"
 
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - IDF : ${IDF}"
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - CFT Directory : ${CFT_DIR}"
-echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichie d'input : ${_FULL_INPUT_FILE_PATH}"
+echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichier d'input : ${_FULL_INPUT_FILE_PATH}"
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Fichier d'output converti : ${_FULL_OUTPUT_FILE_PATH}"
 echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Copie du fichier d'input dans un repertoire de travail => ${SUMMITSPOOLDIR}"
 
@@ -151,6 +151,10 @@ if [ ${_CODE} -ne 0 ]
     echo "FIN JOB ${CTM0} $(date "+%Y%m%d-%H%M%S")"
     exit ${_CODE}
   else
+    if [ -f ${SUMMITERRDIR}/ERRORLOG.DAT ]
+      then
+        mv ${SUMMITERRDIR}/ERRORLOG.DAT  ${SUMMITERRDIR}/ERRORLOG.DAT.$(date "+%Y%m%d_%H%M%S")
+    fi
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Code retour = ${_CODE}"
     echo "[INFO] - [$(date "+%Y-%m-%d-%H-%M-%S")] - Deplacement du fichier d'import vers le repertoire ${CFT_DIR}/${IDF}.done"
     mv ${_FULL_INPUT_FILE_PATH} ${CFT_DIR}/${IDF}.done/
